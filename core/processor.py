@@ -44,7 +44,10 @@ def standardize_column(df, column, method, **kwargs):
         decimals = kwargs.get('decimals', 0)
         df_copy[column] = col_data.round(decimals)
     elif method == 'to_numeric':
-        df_copy[column] = pd.to_numeric(col_data, errors='ignore')
+        try:
+            df_copy[column] = pd.to_numeric(col_data)
+        except (ValueError, TypeError):
+            pass
     elif method == 'num_to_words':
         df_copy[column] = df_copy[column].apply(lambda x: num2words(x) if pd.notnull(x) else x)
     elif method == 'words_to_num':

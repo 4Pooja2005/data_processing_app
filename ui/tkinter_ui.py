@@ -307,7 +307,6 @@ class DataProcessingApp:
                 elif 'int' in dtype or 'float' in dtype:
                     methods = [
                         ('Round numbers', 'round'), 
-                        ('Convert to numeric', 'to_numeric'),
                         ('Convert to words', 'num_to_words')
                     ]
                     extra_label.config(text="Number of decimal places:")
