@@ -1,4 +1,6 @@
 import pandas as pd
+from num2words import num2words
+from word2number import w2n
 
 # -------- Per-file operations --------
 def remove_duplicates(df):
@@ -43,7 +45,17 @@ def standardize_column(df, column, method, **kwargs):
         df_copy[column] = col_data.round(decimals)
     elif method == 'to_numeric':
         df_copy[column] = pd.to_numeric(col_data, errors='ignore')
-    
+    elif method == 'num_to_words':
+        df_copy[column] = df_copy[column].apply(lambda x: num2words(x) if pd.notnull(x) else x)
+    elif method == 'words_to_num':
+        def safe_w2n(x):
+            try:
+                if pd.isnull(x): return x
+                return w2n.word_to_num(str(x))
+            except:
+                return x
+        df_copy[column] = df_copy[column].apply(safe_w2n)
+    # Add more methods as needed
     return df_copy
 
 # -------- Cross-file operation (example merge) --------

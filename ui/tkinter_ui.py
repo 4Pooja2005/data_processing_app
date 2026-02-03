@@ -295,11 +295,21 @@ class DataProcessingApp:
                 for widget in method_frame.winfo_children():
                     widget.destroy()
                 if 'object' in dtype or 'string' in dtype:
-                    methods = [('Convert to lowercase', 'lowercase'), ('Convert to uppercase', 'uppercase'), ('Convert to title case', 'title'), ('Strip whitespace', 'strip')]
+                    methods = [
+                        ('Convert to lowercase', 'lowercase'), 
+                        ('Convert to uppercase', 'uppercase'), 
+                        ('Convert to title case', 'title'), 
+                        ('Strip whitespace', 'strip'),
+                        ('Convert to number', 'words_to_num')
+                    ]
                     extra_label.config(text="")
                     extra_entry.pack_forget()
                 elif 'int' in dtype or 'float' in dtype:
-                    methods = [('Round numbers', 'round'), ('Convert to numeric', 'to_numeric')]
+                    methods = [
+                        ('Round numbers', 'round'), 
+                        ('Convert to numeric', 'to_numeric'),
+                        ('Convert to words', 'num_to_words')
+                    ]
                     extra_label.config(text="Number of decimal places:")
                     extra_entry.pack(side=tk.LEFT, padx=5)
                 else:
@@ -413,3 +423,4 @@ class DataProcessingApp:
         else:
             self.undo_btn.config(state=tk.DISABLED)
             self.reset_btn.config(state=tk.DISABLED)
+ 
