@@ -195,9 +195,17 @@ class DataProcessingApp:
     def remove_duplicates(self):
         ds = self.manager.get_active_dataset()
         if ds:
-            ds.df = remove_duplicates(ds.df)
-            ds.save_state()
-            messagebox.showinfo("Done", "Duplicates removed.")
+            new_df = remove_duplicates(ds.df)
+            new_name = generate_temp_name(base="deduped")
+            self.manager.add_dataset(new_name, new_df, temporary=True)
+            self.refresh_listbox()
+            # Optionally, select the new dataset
+            idx = list(self.manager.datasets.keys()).index(new_name)
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(idx)
+            self.listbox.activate(idx)
+            self.manager.active_dataset_name = new_name
+            messagebox.showinfo("Done", f"Duplicates removed. New dataset '{new_name}' created.")
             self.update_undo_buttons()
 
     def handle_missing_values(self):
@@ -234,9 +242,19 @@ class DataProcessingApp:
             fill_val = simpledialog.askstring("Fill Value", "Enter value to fill missing:")
         
         if method and (method != "fill" or fill_val is not None):
-            ds.df = handle_missing_values(ds.df, method=method, fill_value=fill_val)
-            ds.save_state()
-            messagebox.showinfo("Done", "Missing values handled.")
+            new_df = handle_missing_values(ds.df, method=method, fill_value=fill_val)
+            new_name = generate_temp_name(base="clean")
+            self.manager.add_dataset(new_name, new_df, temporary=True)
+            self.refresh_listbox()
+            
+            # Select the new dataset
+            idx = list(self.manager.datasets.keys()).index(new_name)
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(idx)
+            self.listbox.activate(idx)
+            self.manager.active_dataset_name = new_name
+            
+            messagebox.showinfo("Done", f"Missing values handled. New dataset '{new_name}' created.")
             self.update_undo_buttons()
 
     def standardize_data(self):
@@ -312,9 +330,19 @@ class DataProcessingApp:
                 except ValueError:
                     messagebox.showerror("Error", "Enter valid number for decimals")
                     return
-            ds.df = standardize_column(ds.df, col, method, **kwargs)
-            ds.save_state()
-            messagebox.showinfo("Done", f"Column '{col}' standardized.")
+            new_df = standardize_column(ds.df, col, method, **kwargs)
+            new_name = generate_temp_name(base="std")
+            self.manager.add_dataset(new_name, new_df, temporary=True)
+            self.refresh_listbox()
+            
+            # Select the new dataset
+            idx = list(self.manager.datasets.keys()).index(new_name)
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(idx)
+            self.listbox.activate(idx)
+            self.manager.active_dataset_name = new_name
+            
+            messagebox.showinfo("Done", f"Column '{col}' standardized. New dataset '{new_name}' created.")
             dialog.destroy()
             self.update_undo_buttons()
         
