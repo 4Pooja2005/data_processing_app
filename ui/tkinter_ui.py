@@ -373,3 +373,12 @@ class DataProcessingApp:
             messagebox.showinfo("Exported", f"Dataset saved as {save_path}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    def update_undo_buttons(self):
+        ds = self.manager.get_active_dataset()
+        if ds:
+            self.undo_btn.config(state=tk.NORMAL if len(ds.history) > 1 else tk.DISABLED)
+            self.reset_btn.config(state=tk.NORMAL)
+        else:
+            self.undo_btn.config(state=tk.DISABLED)
+            self.reset_btn.config(state=tk.DISABLED)
