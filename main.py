@@ -1,6 +1,6 @@
-import tkinter as tk
+import customtkinter as ctk
 from ui.tkinter_ui import DataProcessingApp
 
-root = tk.Tk()
+root = ctk.CTk()
 app = DataProcessingApp(root)
 root.mainloop()

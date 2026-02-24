@@ -1,78 +1,123 @@
 import tkinter as tk
-from tkinter import ttk
+import customtkinter as ctk
 from tkinter import filedialog, messagebox, simpledialog, Menu
 from core.state import DatasetManager
 from core.loader import load_file
 from core.processor import remove_duplicates, handle_missing_values, standardize_data, standardize_column, merge_datasets
 from core.utils import generate_temp_name
+from nlp.engine import NLPEngine
+
+# Set the Space Theme palette globally
+ctk.set_appearance_mode("Dark")  
+
+# Nasa Space Apps Inspired Palette constants
+SPACE_VOID = "#0c0c0c"
+SPACE_MIDNIGHT = "#1a1a2e"
+SPACE_DEEP_BLUE = "#16213e"
+NEON_CYAN = "#00f3ff"
+NEON_CYAN_HOVER = "#00c8d1"
+NEON_PURPLE = "#b026ff"
+NEON_PURPLE_HOVER = "#8f12d6"
+NEON_GREEN = "#39ff14"
+TEXT_GLOW = "#e2e8f0"
 
 class DataProcessingApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Data Processing App")
-        self.root.geometry("700x600")
-        self.root.resizable(True, True)
+        self.root.title("SPACE DATA TERMINAL 🚀")
+        self.root.geometry("1000x750")
+        self.root.minsize(900, 650)
+        self.root.configure(bg=SPACE_VOID)
+        
         self.manager = DatasetManager()
-        self.selection_order = []  # Track order of dataset selection
+        self.nlp = NLPEngine()
+        self.selection_order = []  
         self.create_widgets()
 
     def create_widgets(self):
-        # Main container
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Master Layout: Left panel for controls, Right panel for listbox and NLP
+        
+        # Left Panel (Controls)
+        self.left_panel = ctk.CTkFrame(self.root, corner_radius=15, fg_color=SPACE_MIDNIGHT, border_width=1, border_color=SPACE_DEEP_BLUE)
+        self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=20, pady=20)
+        
+        title_label = ctk.CTkLabel(self.left_panel, text="Preprocessing Magic", font=ctk.CTkFont(family="Orbitron", size=22, weight="bold"), text_color=NEON_CYAN)
+        title_label.pack(pady=(20, 20), padx=20)
 
-        # Title
-        title_label = ttk.Label(main_frame, text="Data Processing Toolkit", font=("Arial", 16, "bold"))
-        title_label.pack(pady=(0, 20))
+        # File Management
+        upload_btn = ctk.CTkButton(self.left_panel, text="📂 Upload Datasets", command=self.upload_files, font=ctk.CTkFont(size=14, weight="bold"), height=40, fg_color=NEON_PURPLE, hover_color=NEON_PURPLE_HOVER)
+        upload_btn.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-        # Upload section
-        upload_frame = ttk.LabelFrame(main_frame, text="File Management", padding="10")
-        upload_frame.pack(fill=tk.X, pady=(0, 10))
-        ttk.Button(upload_frame, text="📁 Upload Files", command=self.upload_files).pack(side=tk.LEFT, padx=(0, 10))
+        # Data Cleaning
+        clean_lbl = ctk.CTkLabel(self.left_panel, text="🧹 Cleaning Actions", font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_GLOW)
+        clean_lbl.pack(anchor="w", padx=20, pady=(10, 5))
 
-        # Dataset selection
-        select_frame = ttk.LabelFrame(main_frame, text="Dataset Selection", padding="10")
-        select_frame.pack(fill=tk.X, pady=(0, 10))
-        self.listbox = tk.Listbox(select_frame, height=4, selectmode=tk.MULTIPLE)
-        self.listbox.pack(fill=tk.X)
+        self.remove_dup_btn = ctk.CTkButton(self.left_panel, text="Remove Duplicates", command=self.remove_duplicates, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_CYAN, text_color=NEON_CYAN, hover_color=SPACE_DEEP_BLUE)
+        self.remove_dup_btn.pack(fill=tk.X, padx=20, pady=5)
+        
+        self.handle_missing_btn = ctk.CTkButton(self.left_panel, text="Handle Missing", command=self.handle_missing_values, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_CYAN, text_color=NEON_CYAN, hover_color=SPACE_DEEP_BLUE)
+        self.handle_missing_btn.pack(fill=tk.X, padx=20, pady=5)
+        
+        self.standardize_btn = ctk.CTkButton(self.left_panel, text="Standardize Data", command=self.standardize_data, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_CYAN, text_color=NEON_CYAN, hover_color=SPACE_DEEP_BLUE)
+        self.standardize_btn.pack(fill=tk.X, padx=20, pady=5)
+
+        # Advanced
+        adv_lbl = ctk.CTkLabel(self.left_panel, text="🔗 Advanced", font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_GLOW)
+        adv_lbl.pack(anchor="w", padx=20, pady=(15, 5))
+
+        self.merge_btn = ctk.CTkButton(self.left_panel, text="Merge Datasets", command=self.cross_file_merge, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_PURPLE, text_color=NEON_PURPLE, hover_color=SPACE_DEEP_BLUE)
+        self.merge_btn.pack(fill=tk.X, padx=20, pady=5)
+
+        # Right Panel (Listbox, Preview, NLP)
+        self.right_panel = ctk.CTkFrame(self.root, fg_color="transparent")
+        self.right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 20), pady=20)
+
+        # Top Right: Dataset List
+        list_frame = ctk.CTkFrame(self.right_panel, corner_radius=15, fg_color=SPACE_MIDNIGHT, border_width=1, border_color=SPACE_DEEP_BLUE)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        list_lbl = ctk.CTkLabel(list_frame, text="🗂️ Active Datasets", font=ctk.CTkFont(size=16, weight="bold"), text_color=TEXT_GLOW)
+        list_lbl.pack(anchor="w", padx=20, pady=(15, 5))
+
+        # We style a basic Tkinter listbox to match CustomTkinter
+        self.listbox = tk.Listbox(list_frame, selectmode=tk.MULTIPLE, bg=SPACE_DEEP_BLUE, fg=TEXT_GLOW, selectbackground=NEON_PURPLE, selectforeground="white", font=("Orbitron", 12), borderwidth=0, highlightthickness=0)
+        self.listbox.pack(fill=tk.BOTH, expand=True, padx=20, pady=(5, 20))
         self.listbox.bind("<<ListboxSelect>>", self.on_select)
         self.listbox.bind("<Button-3>", self.show_context_menu)
 
-        # Operations sections
-        ops_frame = ttk.Frame(main_frame)
-        ops_frame.pack(fill=tk.X, pady=(0, 10))
+        # Actions Row (Undo, Reset, View, Export)
+        action_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
+        action_frame.pack(fill=tk.X, pady=(0, 20))
 
-        # Data Cleaning
-        clean_frame = ttk.LabelFrame(ops_frame, text="Data Cleaning", padding="10")
-        clean_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        self.remove_dup_btn = ttk.Button(clean_frame, text="🗑️ Remove Duplicates", command=self.remove_duplicates, state=tk.DISABLED)
-        self.remove_dup_btn.pack(fill=tk.X, pady=2)
-        self.handle_missing_btn = ttk.Button(clean_frame, text="🔧 Handle Missing Values", command=self.handle_missing_values, state=tk.DISABLED)
-        self.handle_missing_btn.pack(fill=tk.X, pady=2)
-        self.standardize_btn = ttk.Button(clean_frame, text="✨ Standardize Data", command=self.standardize_data, state=tk.DISABLED)
-        self.standardize_btn.pack(fill=tk.X, pady=2)
+        self.preview_btn = ctk.CTkButton(action_frame, text="👁️ Preview", command=self.preview_data, state="disabled", width=120, fg_color=NEON_GREEN, text_color="black", hover_color="#2dd412")
+        self.preview_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.export_btn = ctk.CTkButton(action_frame, text="💾 Export", command=self.export_dataset, state="disabled", width=120, fg_color="transparent", border_width=2, border_color=NEON_GREEN, text_color=NEON_GREEN, hover_color=SPACE_DEEP_BLUE)
+        self.export_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        # History Management
-        history_frame = ttk.LabelFrame(ops_frame, text="History", padding="10")
-        history_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        self.undo_btn = ttk.Button(history_frame, text="↶ Undo", command=self.undo, state=tk.DISABLED)
-        self.undo_btn.pack(fill=tk.X, pady=2)
-        self.reset_btn = ttk.Button(history_frame, text="🔄 Reset", command=self.reset, state=tk.DISABLED)
-        self.reset_btn.pack(fill=tk.X, pady=2)
+        self.reset_btn = ctk.CTkButton(action_frame, text="🔄 Reset", command=self.reset, state="disabled", width=100, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
+        self.reset_btn.pack(side=tk.RIGHT, padx=(10, 0))
 
-        # Cross-file Operations
-        cross_frame = ttk.LabelFrame(ops_frame, text="Cross-file Operations", padding="10")
-        cross_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        self.merge_btn = ttk.Button(cross_frame, text="🔗 Cross-file Merge", command=self.cross_file_merge, state=tk.DISABLED)
-        self.merge_btn.pack(fill=tk.X, pady=2)
+        self.undo_btn = ctk.CTkButton(action_frame, text="↶ Undo", command=self.undo, state="disabled", width=100, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
+        self.undo_btn.pack(side=tk.RIGHT)
 
-        # View & Export
-        view_frame = ttk.LabelFrame(ops_frame, text="View & Export", padding="10")
-        view_frame.pack(side=tk.LEFT, fill=tk.Y)
-        self.preview_btn = ttk.Button(view_frame, text="👁️ Preview Data", command=self.preview_data, state=tk.DISABLED)
-        self.preview_btn.pack(fill=tk.X, pady=2)
-        self.export_btn = ttk.Button(view_frame, text="💾 Export Dataset", command=self.export_dataset, state=tk.DISABLED)
-        self.export_btn.pack(fill=tk.X, pady=2)
+        # Bottom Right: NLP Command Line
+        nlp_frame = ctk.CTkFrame(self.right_panel, corner_radius=15, fg_color=SPACE_MIDNIGHT, border_width=2, border_color=NEON_CYAN)
+        nlp_frame.pack(fill=tk.X)
+        
+        nlp_lbl = ctk.CTkLabel(nlp_frame, text="✨ Magical AI Command Line", font=ctk.CTkFont(family="Orbitron", size=14, weight="bold"), text_color=NEON_CYAN)
+        nlp_lbl.pack(anchor="w", padx=20, pady=(15, 5))
+
+        input_row = ctk.CTkFrame(nlp_frame, fg_color="transparent")
+        input_row.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        self.nlp_input_var = tk.StringVar()
+        self.nlp_entry = ctk.CTkEntry(input_row, textvariable=self.nlp_input_var, font=ctk.CTkFont(size=14), placeholder_text="e.g. 'remove duplicates'", height=40, state="disabled", fg_color=SPACE_DEEP_BLUE, border_color=SPACE_DEEP_BLUE)
+        self.nlp_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
+        self.nlp_entry.bind('<Return>', lambda e: self.execute_nlp_command())
+        
+        self.nlp_btn = ctk.CTkButton(input_row, text="🚀 Execute", command=self.execute_nlp_command, state="disabled", width=100, height=40, fg_color=NEON_CYAN, text_color="black", hover_color=NEON_CYAN_HOVER)
+        self.nlp_btn.pack(side=tk.RIGHT)
 
     # ---------------- Upload ----------------
     def upload_files(self):
@@ -91,7 +136,7 @@ class DataProcessingApp:
         self.listbox.delete(0, tk.END)
         for name in self.manager.datasets:
             self.listbox.insert(tk.END, name)
-        self.selection_order = []  # Reset selection order after refresh
+        self.selection_order = []  
 
     def on_select(self, event):
         current_selection = set(self.listbox.curselection())
@@ -100,12 +145,10 @@ class DataProcessingApp:
         newly_selected = current_selection - previous_selection
         newly_deselected = previous_selection - current_selection
         
-        # Remove deselected
         for name in newly_deselected:
             if name in self.selection_order:
                 self.selection_order.remove(name)
         
-        # Add newly selected in order
         for idx in newly_selected:
             name = self.listbox.get(idx)
             if name not in self.selection_order:
@@ -113,39 +156,32 @@ class DataProcessingApp:
         
         selection = self.listbox.curselection()
         if selection:
-            # Set active dataset to first selected for per-file ops
             self.manager.active_dataset_name = self.selection_order[0] if self.selection_order else None
-            # Enable buttons
-            self.remove_dup_btn.config(state=tk.NORMAL)
-            self.handle_missing_btn.config(state=tk.NORMAL)
-            self.standardize_btn.config(state=tk.NORMAL)
-            self.preview_btn.config(state=tk.NORMAL)
-            self.export_btn.config(state=tk.NORMAL)
-            # Enable undo/reset if applicable
+            
+            # Enable buttons using CTk state configuration
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn]:
+                btn.configure(state="normal")
+                
             ds = self.manager.get_active_dataset()
             if ds:
-                self.reset_btn.config(state=tk.NORMAL)
-                self.undo_btn.config(state=tk.NORMAL if len(ds.history) > 1 else tk.DISABLED)
-            # Enable merge if at least 2 selected
+                self.reset_btn.configure(state="normal")
+                self.undo_btn.configure(state="normal" if len(ds.history) > 1 else "disabled")
+                
             if len(self.selection_order) >= 2:
-                self.merge_btn.config(state=tk.NORMAL)
+                self.merge_btn.configure(state="normal")
             else:
-                self.merge_btn.config(state=tk.DISABLED)
+                self.merge_btn.configure(state="disabled")
+                
+            self.nlp_entry.configure(state="normal")
+            self.nlp_btn.configure(state="normal")
         else:
-            # No selection, disable all
             self.manager.active_dataset_name = None
             self.selection_order = []
-            self.remove_dup_btn.config(state=tk.DISABLED)
-            self.handle_missing_btn.config(state=tk.DISABLED)
-            self.standardize_btn.config(state=tk.DISABLED)
-            self.merge_btn.config(state=tk.DISABLED)
-            self.preview_btn.config(state=tk.DISABLED)
-            self.export_btn.config(state=tk.DISABLED)
-            self.undo_btn.config(state=tk.DISABLED)
-            self.reset_btn.config(state=tk.DISABLED)
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.merge_btn, self.undo_btn, self.reset_btn, self.nlp_btn]:
+                btn.configure(state="disabled")
+            self.nlp_entry.configure(state="disabled")
 
     def show_context_menu(self, event):
-        # Get the index under the mouse
         index = self.listbox.nearest(event.y)
         if index < 0 or index >= self.listbox.size():
             return
@@ -154,8 +190,7 @@ class DataProcessingApp:
         if name not in self.manager.datasets:
             return
         
-        # Create context menu
-        menu = Menu(self.root, tearoff=0)
+        menu = Menu(self.root, tearoff=0, bg=SPACE_MIDNIGHT, fg="white", activebackground=NEON_PURPLE)
         menu.add_command(label="Delete Dataset", command=lambda: self.delete_dataset(name))
         menu.post(event.x_root, event.y_root)
 
@@ -167,14 +202,17 @@ class DataProcessingApp:
             if self.manager.active_dataset_name == name:
                 self.manager.active_dataset_name = self.selection_order[0] if self.selection_order else None
             self.refresh_listbox()
-            self.on_select(None)  # Update button states
+            self.on_select(None)  
+        self.update_undo_buttons()
+
+    def update_undo_buttons(self):
         ds = self.manager.get_active_dataset()
         if ds:
-            self.undo_btn.config(state=tk.NORMAL if len(ds.history) > 1 else tk.DISABLED)
-            self.reset_btn.config(state=tk.NORMAL)
+            self.undo_btn.configure(state="normal" if len(ds.history) > 1 else "disabled")
+            self.reset_btn.configure(state="normal")
         else:
-            self.undo_btn.config(state=tk.DISABLED)
-            self.reset_btn.config(state=tk.DISABLED)
+            self.undo_btn.configure(state="disabled")
+            self.reset_btn.configure(state="disabled")
 
     def undo(self):
         ds = self.manager.get_active_dataset()
@@ -199,27 +237,22 @@ class DataProcessingApp:
             new_name = generate_temp_name(base="deduped")
             self.manager.add_dataset(new_name, new_df, temporary=True)
             self.refresh_listbox()
-            # Optionally, select the new dataset
-            idx = list(self.manager.datasets.keys()).index(new_name)
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(idx)
-            self.listbox.activate(idx)
-            self.manager.active_dataset_name = new_name
+            self._select_new_dataset(new_name)
             messagebox.showinfo("Done", f"Duplicates removed. New dataset '{new_name}' created.")
             self.update_undo_buttons()
 
     def handle_missing_values(self):
         ds = self.manager.get_active_dataset()
-        if not ds:
-            return
+        if not ds: return
         
-        # Create a custom dialog for method selection
-        dialog = tk.Toplevel(self.root)
+        dialog = ctk.CTkToplevel(self.root)
         dialog.title("Handle Missing Values")
-        dialog.geometry("300x150")
+        dialog.geometry("350x200")
         dialog.resizable(False, False)
+        dialog.grab_set()
         
-        tk.Label(dialog, text="Choose method to handle missing values:").pack(pady=10)
+        dialog.configure(fg_color=SPACE_VOID)
+        ctk.CTkLabel(dialog, text="Choose method:", font=ctk.CTkFont(weight="bold"), text_color=TEXT_GLOW).pack(pady=15)
         
         method_var = tk.StringVar()
         
@@ -227,14 +260,14 @@ class DataProcessingApp:
             method_var.set(method)
             dialog.destroy()
         
-        button_frame = tk.Frame(dialog)
+        button_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         button_frame.pack(pady=10)
         
-        tk.Button(button_frame, text="Delete", command=lambda: select_method("delete")).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Zero", command=lambda: select_method("zero")).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Fill", command=lambda: select_method("fill")).pack(side=tk.LEFT, padx=5)
+        ctk.CTkButton(button_frame, text="Delete/Drop", command=lambda: select_method("delete"), width=90, fg_color="transparent", border_width=2, border_color="#ff2a2a", text_color="#ff2a2a", hover_color=SPACE_DEEP_BLUE).pack(side=tk.LEFT, padx=5)
+        ctk.CTkButton(button_frame, text="Zero Out", command=lambda: select_method("zero"), width=90, fg_color="transparent", border_width=2, border_color=NEON_CYAN, text_color=NEON_CYAN, hover_color=SPACE_DEEP_BLUE).pack(side=tk.LEFT, padx=5)
+        ctk.CTkButton(button_frame, text="Custom Fill", command=lambda: select_method("fill"), width=90, fg_color="transparent", border_width=2, border_color=NEON_GREEN, text_color=NEON_GREEN, hover_color=SPACE_DEEP_BLUE).pack(side=tk.LEFT, padx=5)
         
-        dialog.wait_window()
+        self.root.wait_window(dialog)
         
         method = method_var.get()
         fill_val = None
@@ -246,91 +279,96 @@ class DataProcessingApp:
             new_name = generate_temp_name(base="clean")
             self.manager.add_dataset(new_name, new_df, temporary=True)
             self.refresh_listbox()
-            
-            # Select the new dataset
-            idx = list(self.manager.datasets.keys()).index(new_name)
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(idx)
-            self.listbox.activate(idx)
-            self.manager.active_dataset_name = new_name
-            
+            self._select_new_dataset(new_name)
             messagebox.showinfo("Done", f"Missing values handled. New dataset '{new_name}' created.")
             self.update_undo_buttons()
 
     def standardize_data(self):
         ds = self.manager.get_active_dataset()
-        if not ds:
-            return
+        if not ds: return
         
-        # Create standardization dialog
-        dialog = tk.Toplevel(self.root)
+        dialog = ctk.CTkToplevel(self.root)
         dialog.title("Standardize Column")
-        dialog.geometry("400x500")
-        dialog.resizable(True, True)
+        dialog.geometry("450x550")
+        dialog.grab_set()
+        dialog.configure(fg_color=SPACE_VOID)
         
-        tk.Label(dialog, text="Select column to standardize:").pack(pady=5)
+        ctk.CTkLabel(dialog, text="Select column:", font=ctk.CTkFont(weight="bold"), text_color=TEXT_GLOW).pack(pady=(15, 5))
         
-        column_var = tk.StringVar()
-        column_menu = tk.OptionMenu(dialog, column_var, *ds.df.columns)
+        cols = list(ds.df.columns)
+        column_var = tk.StringVar(value=cols[0] if cols else "")
+        column_menu = ctk.CTkOptionMenu(dialog, variable=column_var, values=cols, fg_color=SPACE_DEEP_BLUE, button_color=SPACE_DEEP_BLUE, button_hover_color=NEON_PURPLE)
         column_menu.pack(pady=5)
         
-        tk.Label(dialog, text="Select standardization method:").pack(pady=5)
+        ctk.CTkLabel(dialog, text="Select method:", font=ctk.CTkFont(weight="bold"), text_color=TEXT_GLOW).pack(pady=(15, 5))
         
         method_var = tk.StringVar()
-        method_frame = tk.Frame(dialog)
-        method_frame.pack(pady=5)
+        method_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        method_frame.pack(pady=5, fill=tk.BOTH, expand=True, padx=20)
         
-        # Additional input for methods that need it
-        extra_frame = tk.Frame(dialog)
-        extra_frame.pack(pady=5, fill=tk.X)
-        extra_label = tk.Label(extra_frame, text="")
+        extra_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        extra_frame.pack(pady=10, fill=tk.X, padx=20)
+        extra_label = ctk.CTkLabel(extra_frame, text="")
         extra_label.pack(side=tk.LEFT)
-        extra_entry = tk.Entry(extra_frame, width=10)
+        extra_entry = ctk.CTkEntry(extra_frame, width=80)
         
+        radio_buttons = []
+
         def on_column_change(*args):
             col = column_var.get()
-            if col:
-                dtype = str(ds.df[col].dtype)
-                # Clear previous radiobuttons
-                for widget in method_frame.winfo_children():
-                    widget.destroy()
-                if 'object' in dtype or 'string' in dtype:
-                    methods = [
-                        ('Convert to lowercase', 'lowercase'), 
-                        ('Convert to uppercase', 'uppercase'), 
-                        ('Convert to title case', 'title'), 
-                        ('Strip whitespace', 'strip'),
-                        ('Convert to number', 'words_to_num')
-                    ]
-                    extra_label.config(text="")
-                    extra_entry.pack_forget()
-                elif 'int' in dtype or 'float' in dtype:
-                    methods = [
-                        ('Round numbers', 'round'), 
-                        ('Convert to words', 'num_to_words')
-                    ]
-                    extra_label.config(text="Number of decimal places:")
-                    extra_entry.pack(side=tk.LEFT, padx=5)
-                else:
-                    methods = [('Convert to numeric', 'to_numeric')]  # fallback
-                    extra_label.config(text="")
-                    extra_entry.pack_forget()
-                for text, val in methods:
-                    tk.Radiobutton(method_frame, text=text, variable=method_var, value=val).pack(anchor=tk.W)
-                method_var.set(methods[0][1] if methods else "")
-        
+            if not col: return
+            
+            dtype = str(ds.df[col].dtype)
+            for widget in radio_buttons:
+                widget.destroy()
+            radio_buttons.clear()
+
+            if 'object' in dtype or 'string' in dtype:
+                methods = [
+                    ('Convert to lowercase', 'lowercase'), 
+                    ('Convert to uppercase', 'uppercase'), 
+                    ('Convert to title case', 'title'), 
+                    ('Strip whitespace', 'strip'),
+                    ('Convert to number', 'words_to_num')
+                ]
+                sample = ds.df[col].dropna().iloc[0] if not ds.df[col].dropna().empty else ""
+                sample_str = str(sample)
+                
+                if "date" in col.lower() or "time" in col.lower() or any(x in sample_str for x in ['/', '-']):
+                    methods.append(('Standardize Date (YYYY-MM-DD)', 'to_date'))
+                if "price" in col.lower() or "amount" in col.lower() or "$" in sample_str:
+                    methods.append(('Remove Currency Symbols', 'remove_currency'))
+
+                extra_label.configure(text="")
+                extra_entry.pack_forget()
+            elif 'int' in dtype or 'float' in dtype:
+                methods = [
+                    ('Round numbers', 'round'),
+                    ('Convert to words', 'num_to_words')
+                ]
+                extra_label.configure(text="Number of decimals:")
+                extra_entry.pack(side=tk.LEFT, padx=10)
+            else:
+                methods = [('Convert to numeric', 'to_numeric')] 
+                extra_label.configure(text="")
+                extra_entry.pack_forget()
+            
+            for text, val in methods:
+                rb = ctk.CTkRadioButton(method_frame, text=text, variable=method_var, value=val, text_color=TEXT_GLOW, hover_color=NEON_PURPLE)
+                rb.pack(anchor="w", pady=5)
+                radio_buttons.append(rb)
+            
+            if methods:
+                method_var.set(methods[0][1])
+                
         column_var.trace('w', on_column_change)
-        
-        # Set initial column if any
-        if not ds.df.columns.empty:
-            column_var.set(ds.df.columns[0])
-            on_column_change()
+        on_column_change()
         
         def apply_standardization():
             col = column_var.get()
             method = method_var.get()
             if not col or not method:
-                messagebox.showwarning("Incomplete", "Select column and method")
+                messagebox.showwarning("Incomplete", "Select method")
                 return
             kwargs = {}
             if method == 'round':
@@ -343,24 +381,16 @@ class DataProcessingApp:
             new_name = generate_temp_name(base="std")
             self.manager.add_dataset(new_name, new_df, temporary=True)
             self.refresh_listbox()
-            
-            # Select the new dataset
-            idx = list(self.manager.datasets.keys()).index(new_name)
-            self.listbox.selection_clear(0, tk.END)
-            self.listbox.selection_set(idx)
-            self.listbox.activate(idx)
-            self.manager.active_dataset_name = new_name
-            
-            messagebox.showinfo("Done", f"Column '{col}' standardized. New dataset '{new_name}' created.")
+            self._select_new_dataset(new_name)
+            messagebox.showinfo("Done", f"Column standardized. New dataset '{new_name}' created.")
             dialog.destroy()
             self.update_undo_buttons()
         
-        button_frame = tk.Frame(dialog)
-        button_frame.pack(pady=20)
-        tk.Button(button_frame, text="Apply", command=apply_standardization).pack(side=tk.LEFT, padx=10)
-        tk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=10)
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=(0, 20))
+        ctk.CTkButton(btn_frame, text="Apply", command=apply_standardization, width=100, fg_color=NEON_GREEN, text_color="black", hover_color="#2dd412").pack(side=tk.LEFT, padx=10)
+        ctk.CTkButton(btn_frame, text="Cancel", command=dialog.destroy, width=100, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, text_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE).pack(side=tk.LEFT, padx=10)
 
-    # ---------------- Cross-file ops ----------------
     def cross_file_merge(self):
         if len(self.selection_order) < 2:
             messagebox.showwarning("Selection Error", "Select at least two datasets")
@@ -371,34 +401,27 @@ class DataProcessingApp:
         messagebox.showinfo("Done", f"Temporary dataset created: {temp_name}")
         self.refresh_listbox()
 
-    # ---------------- Preview ----------------
     def preview_data(self):
         ds = self.manager.get_active_dataset()
-        if not ds:
-            messagebox.showwarning("No Dataset", "No active dataset")
-            return
-        top = tk.Toplevel(self.root)
-        top.title(f"Preview: {ds.name} | Shape: {ds.df.shape}")
-        text = tk.Text(top, width=120, height=40)
-        text.pack(expand=True, fill=tk.BOTH)
+        if not ds: return
         
-        # Show info and first 100 rows
+        top = ctk.CTkToplevel(self.root)
+        top.title(f"Preview: {ds.name} | Shape: {ds.df.shape}")
+        top.geometry("800x600")
+        
+        textbox = ctk.CTkTextbox(top, font=ctk.CTkFont(family="Courier", size=12), wrap="none")
+        textbox.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+        
         info = f"Total Rows: {len(ds.df)}\nTotal Columns: {len(ds.df.columns)}\n\n"
-        text.insert(tk.END, info + ds.df.head(100).to_string())
+        textbox.insert("1.0", info + ds.df.head(100).to_string())
+        textbox.configure(state="disabled")
 
-    # ---------------- Export ----------------
     def export_dataset(self):
         ds = self.manager.get_active_dataset()
-        if not ds:
-            messagebox.showwarning("No Dataset", "No active dataset")
-            return
-
-        # Ask user where to save
+        if not ds: return
         filetypes = [("CSV", "*.csv"), ("Excel", "*.xlsx"), ("JSON", "*.json")]
         save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=filetypes)
-
-        if not save_path:
-            return
+        if not save_path: return
 
         try:
             if save_path.endswith(".csv"):
@@ -408,18 +431,56 @@ class DataProcessingApp:
             elif save_path.endswith(".json"):
                 ds.df.to_json(save_path, orient="records")
             else:
-                messagebox.showerror("Error", "Unsupported file format")
+                messagebox.showerror("Error", "Unsupported format")
                 return
             messagebox.showinfo("Exported", f"Dataset saved as {save_path}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    def update_undo_buttons(self):
+    def execute_nlp_command(self):
+        command = self.nlp_input_var.get().strip()
+        if not command: return
+            
         ds = self.manager.get_active_dataset()
-        if ds:
-            self.undo_btn.config(state=tk.NORMAL if len(ds.history) > 1 else tk.DISABLED)
-            self.reset_btn.config(state=tk.NORMAL)
-        else:
-            self.undo_btn.config(state=tk.DISABLED)
-            self.reset_btn.config(state=tk.DISABLED)
- 
+        if not ds:
+            messagebox.showwarning("No Dataset", "Please select a dataset first.")
+            return
+
+        result = self.nlp.parse_command(command)
+        if not result:
+            messagebox.showinfo("NLP Engine", f"Sorry, I didn't understand:\n'{command}'")
+            return
+            
+        intent = result["intent"]
+        
+        if intent == "remove_duplicates":
+            self.remove_duplicates()
+            messagebox.showinfo("NLP Success", f"Magically {intent.replace('_', ' ')}! ✨")
+        elif intent == "drop_missing":
+            new_df = handle_missing_values(ds.df, method="delete")
+            new_name = generate_temp_name(base="clean")
+            self.manager.add_dataset(new_name, new_df, temporary=True)
+            self.refresh_listbox()
+            self._select_new_dataset(new_name)
+            messagebox.showinfo("NLP Success", "Magically dropped missing values! ✨")
+        elif intent == "fill_zero_missing":
+            new_df = handle_missing_values(ds.df, method="zero")
+            new_name = generate_temp_name(base="clean")
+            self.manager.add_dataset(new_name, new_df, temporary=True)
+            self.refresh_listbox()
+            self._select_new_dataset(new_name)
+            messagebox.showinfo("NLP Success", "Filled missing values with zeros! ✨")
+        elif intent.startswith("standardize_") or intent == "remove_currency":
+            messagebox.showinfo("NLP Suggestion", "Select column below.")
+            self.standardize_data()
+            
+        self.nlp_input_var.set("")
+        self.update_undo_buttons()
+        
+    def _select_new_dataset(self, new_name):
+        idx = list(self.manager.datasets.keys()).index(new_name)
+        self.listbox.selection_clear(0, tk.END)
+        self.listbox.selection_set(idx)
+        self.listbox.activate(idx)
+        self.manager.active_dataset_name = new_name
+        self.on_select(None)
