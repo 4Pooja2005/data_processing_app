@@ -61,6 +61,9 @@ class DataProcessingApp:
         self.standardize_btn = ctk.CTkButton(self.left_panel, text="Standardize Data", command=self.standardize_data, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_CYAN, text_color=NEON_CYAN, hover_color=SPACE_DEEP_BLUE)
         self.standardize_btn.pack(fill=tk.X, padx=20, pady=5)
 
+        self.auto_clean_btn = ctk.CTkButton(self.left_panel, text="✨ Auto-Clean (Semantic)", command=self.auto_clean, state="disabled", fg_color="transparent", border_width=2, border_color=NEON_GREEN, text_color=NEON_GREEN, hover_color=SPACE_DEEP_BLUE)
+        self.auto_clean_btn.pack(fill=tk.X, padx=20, pady=5)
+
         # Advanced
         adv_lbl = ctk.CTkLabel(self.left_panel, text="🔗 Advanced", font=ctk.CTkFont(size=14, weight="bold"), text_color=TEXT_GLOW)
         adv_lbl.pack(anchor="w", padx=20, pady=(15, 5))
@@ -89,16 +92,19 @@ class DataProcessingApp:
         action_frame = ctk.CTkFrame(self.right_panel, fg_color="transparent")
         action_frame.pack(fill=tk.X, pady=(0, 20))
 
-        self.preview_btn = ctk.CTkButton(action_frame, text="👁️ Preview", command=self.preview_data, state="disabled", width=120, fg_color=NEON_GREEN, text_color="black", hover_color="#2dd412")
-        self.preview_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.preview_btn = ctk.CTkButton(action_frame, text="👁️ Preview", command=self.preview_data, state="disabled", width=100, fg_color=NEON_GREEN, text_color="black", hover_color="#2dd412")
+        self.preview_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        self.export_btn = ctk.CTkButton(action_frame, text="💾 Export", command=self.export_dataset, state="disabled", width=120, fg_color="transparent", border_width=2, border_color=NEON_GREEN, text_color=NEON_GREEN, hover_color=SPACE_DEEP_BLUE)
-        self.export_btn.pack(side=tk.LEFT, padx=(0, 10))
+        self.export_btn = ctk.CTkButton(action_frame, text="💾 Export", command=self.export_dataset, state="disabled", width=100, fg_color="transparent", border_width=2, border_color=NEON_GREEN, text_color=NEON_GREEN, hover_color=SPACE_DEEP_BLUE)
+        self.export_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.reset_btn = ctk.CTkButton(action_frame, text="🔄 Reset", command=self.reset, state="disabled", width=100, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
-        self.reset_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        self.pipeline_btn = ctk.CTkButton(action_frame, text="📜 Pipeline", command=self.view_pipeline, state="disabled", width=100, fg_color="transparent", border_width=2, border_color=NEON_PURPLE, text_color=NEON_PURPLE, hover_color=SPACE_DEEP_BLUE)
+        self.pipeline_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.undo_btn = ctk.CTkButton(action_frame, text="↶ Undo", command=self.undo, state="disabled", width=100, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
+        self.reset_btn = ctk.CTkButton(action_frame, text="🔄 Reset", command=self.reset, state="disabled", width=90, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
+        self.reset_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        self.undo_btn = ctk.CTkButton(action_frame, text="↶ Undo", command=self.undo, state="disabled", width=90, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
         self.undo_btn.pack(side=tk.RIGHT)
 
         # Bottom Right: NLP Command Line
@@ -159,7 +165,7 @@ class DataProcessingApp:
             self.manager.active_dataset_name = self.selection_order[0] if self.selection_order else None
             
             # Enable buttons using CTk state configuration
-            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn]:
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.pipeline_btn, self.auto_clean_btn]:
                 btn.configure(state="normal")
                 
             ds = self.manager.get_active_dataset()
@@ -177,7 +183,7 @@ class DataProcessingApp:
         else:
             self.manager.active_dataset_name = None
             self.selection_order = []
-            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.merge_btn, self.undo_btn, self.reset_btn, self.nlp_btn]:
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.merge_btn, self.undo_btn, self.reset_btn, self.nlp_btn, self.pipeline_btn, self.auto_clean_btn]:
                 btn.configure(state="disabled")
             self.nlp_entry.configure(state="disabled")
 
@@ -229,6 +235,19 @@ class DataProcessingApp:
             self.update_undo_buttons()
         else:
             messagebox.showinfo("Already Reset", "Dataset is already in original state.")
+
+    def auto_clean(self):
+        ds = self.manager.get_active_dataset()
+        if not ds: return
+        
+        logs = ds.auto_clean()
+        self.update_undo_buttons()
+        
+        if logs:
+            msg = "Semantic Type Detection found errors:\n\n" + "\n".join(logs)
+            messagebox.showinfo("Auto-Clean Complete", msg)
+        else:
+            messagebox.showinfo("Auto-Clean Complete", "Your dataset looks perfectly clean semantically! ✨")
 
     def remove_duplicates(self):
         ds = self.manager.get_active_dataset()
@@ -395,11 +414,43 @@ class DataProcessingApp:
         if len(self.selection_order) < 2:
             messagebox.showwarning("Selection Error", "Select at least two datasets")
             return
-        names = self.selection_order
-        temp_name = generate_temp_name("merged")
-        self.manager.apply_cross_file_op(names, merge_datasets, temp_name)
-        messagebox.showinfo("Done", f"Temporary dataset created: {temp_name}")
-        self.refresh_listbox()
+            
+        try:
+            dfs_to_merge = [self.manager.datasets[name].df for name in self.selection_order if name in self.manager.datasets]
+            new_df, stats = self.manager.forge.vertical_concatenation(dfs_to_merge)
+            temp_name = generate_temp_name("forged")
+            self.manager.add_dataset(temp_name, new_df, temporary=True)
+            self.manager.datasets[temp_name].save_state(operation_name="Data Forge: Multi-Merge", stats=stats)
+            messagebox.showinfo("Forge Success", f"Successfully merged {stats['dataframe_count']} datasets into {temp_name}!")
+            self.refresh_listbox()
+            self._select_new_dataset(temp_name)
+        except Exception as e:
+            messagebox.showerror("Merge Error", f"Failed to forge datasets: {str(e)}")
+
+    def view_pipeline(self):
+        ds = self.manager.get_active_dataset()
+        if not ds: return
+        
+        tracker_history = ds.tracker.get_history()
+        
+        dialog = ctk.CTkToplevel(self.root, fg_color=SPACE_VOID)
+        dialog.title(f"Pipeline Audit Log: {ds.name}")
+        dialog.geometry("600x400")
+        dialog.grab_set()
+
+        lbl = ctk.CTkLabel(dialog, text=f"Pipeline History: {ds.name}", font=ctk.CTkFont(family="Orbitron", size=18, weight="bold"), text_color=NEON_PURPLE)
+        lbl.pack(pady=10)
+        
+        text_area = ctk.CTkTextbox(dialog, width=560, height=300, fg_color=SPACE_MIDNIGHT, text_color=TEXT_GLOW, font=("Consolas", 12))
+        text_area.pack(pady=10)
+        
+        for i, step in enumerate(tracker_history):
+            text_area.insert("end", f"[{i+1}] {step['timestamp']}\n")
+            text_area.insert("end", f"Operation: {step['operation']}\n")
+            text_area.insert("end", f"Stats: {step['stats']}\n")
+            text_area.insert("end", "-"*40 + "\n")
+        
+        text_area.configure(state="disabled")
 
     def preview_data(self):
         ds = self.manager.get_active_dataset()
@@ -446,14 +497,27 @@ class DataProcessingApp:
             messagebox.showwarning("No Dataset", "Please select a dataset first.")
             return
 
-        result = self.nlp.parse_command(command)
+        result = self.nlp.parse_command(command, ds.df)
         if not result:
             messagebox.showinfo("NLP Engine", f"Sorry, I didn't understand:\n'{command}'")
             return
             
         intent = result["intent"]
         
-        if intent == "remove_duplicates":
+        if intent == "advanced_operation":
+            op = result["operation"]
+            details = result["details"]
+            try:
+                new_df = self.nlp.execute_advanced(ds.df, details)
+                new_name = generate_temp_name(base=f"nlp_{op}")
+                self.manager.add_dataset(new_name, new_df, temporary=True)
+                self.manager.get_active_dataset().save_state(operation_name=f"NLP: {details.get('description', op)}")
+                self.refresh_listbox()
+                self._select_new_dataset(new_name)
+                messagebox.showinfo("NLP Success", f"Successfully executed: {details.get('description', op)} ✨")
+            except Exception as e:
+                messagebox.showerror("NLP Error", f"Failed to execute {op}: {str(e)}")
+        elif intent == "remove_duplicates":
             self.remove_duplicates()
             messagebox.showinfo("NLP Success", f"Magically {intent.replace('_', ' ')}! ✨")
         elif intent == "drop_missing":
