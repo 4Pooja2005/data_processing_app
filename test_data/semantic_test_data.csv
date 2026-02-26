@@ -1,0 +1,6 @@
+ID,User_Contact,SignUp_Info,Revenue
+1,john@example.com,2023-01-15,$100.50
+2,sarah@test.org,2023-02-28,$200.00
+3,NOT_AN_EMAIL_LOL,2023-03-10,$300.25
+4,mike@company.net,March 15th,Zero Dollars
+5,12345,2023-04-05,$500.00

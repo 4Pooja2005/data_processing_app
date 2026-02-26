@@ -1,0 +1,16 @@
+--- Running Smart Schema Mapper Test Suite ---
+
+Test 1: Standard Naming Variations
+Result: {'cust_name': 'Customer Name', 'EmailAddress': 'Email', 'phone#': 'Phone Number', 'DOB': 'Date of Birth'}
+
+Test 2: Exact matches and Complete Mismatches
+Result: {'ID': 'ID', 'revenue_2024': 'Revenue'}
+
+Test 3: Duplicates and Order Insensitivity
+Result: {'First Name': 'Name'}
+
+Test 4: DataFrame Application
+Mapped Columns:   ['User Address', 'Postal Code', 'unrelated']
+Mapping Used:     {'usr_addr': 'User Address', 'postcode': 'Postal Code'}
+
+All tests passed successfully! ✅
