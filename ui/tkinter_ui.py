@@ -6,6 +6,8 @@ from core.loader import load_file
 from core.processor import remove_duplicates, handle_missing_values, standardize_data, standardize_column, merge_datasets
 from core.utils import generate_temp_name
 from nlp.engine import NLPEngine
+from core.data_health_scorecard import DataHealthScorecard
+from tkinter import messagebox
 
 # Set the Space Theme palette globally
 ctk.set_appearance_mode("Dark")  
@@ -101,6 +103,21 @@ class DataProcessingApp:
         self.pipeline_btn = ctk.CTkButton(action_frame, text="📜 Pipeline", command=self.view_pipeline, state="disabled", width=100, fg_color="transparent", border_width=2, border_color=NEON_PURPLE, text_color=NEON_PURPLE, hover_color=SPACE_DEEP_BLUE)
         self.pipeline_btn.pack(side=tk.LEFT, padx=(0, 5))
 
+        # ✅ Data Health Scorecard Button
+        self.health_btn = ctk.CTkButton(
+        action_frame,
+        text="📊 Health Report",
+        command=self.generate_health_report,
+        state="disabled",
+        width=140,
+        fg_color="transparent",
+        border_width=2,
+        border_color=NEON_CYAN,
+        text_color=NEON_CYAN,
+        hover_color=SPACE_DEEP_BLUE
+        )
+        self.health_btn.pack(side=tk.LEFT, padx=(0, 5))
+
         self.reset_btn = ctk.CTkButton(action_frame, text="🔄 Reset", command=self.reset, state="disabled", width=90, fg_color="transparent", border_width=1, border_color=TEXT_GLOW, hover_color=SPACE_DEEP_BLUE)
         self.reset_btn.pack(side=tk.RIGHT, padx=(5, 0))
 
@@ -165,7 +182,7 @@ class DataProcessingApp:
             self.manager.active_dataset_name = self.selection_order[0] if self.selection_order else None
             
             # Enable buttons using CTk state configuration
-            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.pipeline_btn, self.auto_clean_btn]:
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.pipeline_btn, self.auto_clean_btn, self.health_btn]:
                 btn.configure(state="normal")
                 
             ds = self.manager.get_active_dataset()
@@ -183,7 +200,7 @@ class DataProcessingApp:
         else:
             self.manager.active_dataset_name = None
             self.selection_order = []
-            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.merge_btn, self.undo_btn, self.reset_btn, self.nlp_btn, self.pipeline_btn, self.auto_clean_btn]:
+            for btn in [self.remove_dup_btn, self.handle_missing_btn, self.standardize_btn, self.preview_btn, self.export_btn, self.pipeline_btn, self.auto_clean_btn, self.health_btn, self.merge_btn, self.undo_btn, self.reset_btn, self.nlp_btn]:
                 btn.configure(state="disabled")
             self.nlp_entry.configure(state="disabled")
 
@@ -540,6 +557,59 @@ class DataProcessingApp:
             
         self.nlp_input_var.set("")
         self.update_undo_buttons()
+    # ---------------- DATA HEALTH SCORECARD ----------------
+    def generate_health_report(self):
+        ds = self.manager.get_active_dataset()
+
+        if not ds:
+            messagebox.showwarning("No Dataset", "Please select a dataset first.")
+            return
+
+        # Use the hardcoded Gemini API Key automatically
+        api_key = "AIzaSyCP1KvnG_Cj1DRCzAk6s7zmiFGHs15Smh4"
+
+        # Ask user where to save
+        save_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            initialfile=f"{ds.name}_Health_Report.pdf"
+        )
+
+        if not save_path:
+            return  # user cancelled
+
+        try:
+            # Show a loading message if AI is used (it can take a few seconds)
+            if api_key:
+                from tkinter import Toplevel, Label
+                loading = Toplevel(self.root)
+                loading.title("Generating...")
+                loading.geometry("250x100")
+                loading.configure(bg=SPACE_VOID)
+                loading.transient(self.root)
+                loading.grab_set()
+                Label(loading, text="Generating AI Analysis & PDF...", font=("Orbitron", 10), bg=SPACE_VOID, fg=NEON_CYAN).pack(expand=True)
+                self.root.update()
+
+            scorecard = DataHealthScorecard(ds.df)
+            scorecard.generate_pdf(save_path, api_key=api_key)
+
+            if api_key:
+                loading.destroy()
+
+            messagebox.showinfo(
+                "🚀 Report Generated",
+                f"Data Health Report saved successfully!\n\nLocation:\n{save_path}"
+            )
+
+            # Auto open PDF after generation
+            import os
+            os.startfile(save_path)
+
+        except Exception as e:
+            if 'loading' in locals():
+                loading.destroy()
+            messagebox.showerror("Error", str(e))
         
     def _select_new_dataset(self, new_name):
         idx = list(self.manager.datasets.keys()).index(new_name)
